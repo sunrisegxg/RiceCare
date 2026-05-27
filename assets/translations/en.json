@@ -7,7 +7,7 @@
   "search": "Search...",
   "tab_diseases": "Diseases",
   "tab_farming": "Farming",
-  "tab_fertilizer": "Fertilizer",
+  "tab_fertilizer": "Nutrients",
   "tab_pest": "Pest",
   "tab_tips": "Tips",
   "article_rice_blast_title": "Rice Blast Disease",
@@ -163,5 +163,6 @@
   "scanned_result": "Scanned result",
   "saved_result_on": "Saved result on",
   "unable_to_identify": "Unable to identify the disease",
-  "saved_success": "Result saved successfully"
+  "saved_success": "Result saved successfully",
+  "no_guides_found": "No guides found"
 }

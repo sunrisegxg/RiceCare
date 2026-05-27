@@ -10,6 +10,9 @@ import 'package:ricecare/test.dart';
 import 'components/btn_social.dart';
 import 'components/textfield_type.dart';
 import 'features/auth_repository.dart';
+import 'models/usermodel.dart';
+import 'services/token_service.dart';
+import 'services/user_service.dart';
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback showRegisterPage;
@@ -267,9 +270,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           final authRepo = AuthRepository();
 
                           try {
-                            final idToken = await google.getIdToken();
+                            final googleData = await google.getGoogleData();
 
-                            if (idToken == null) {
+                            if (googleData == null) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text("google_login_cancelled".tr()),
@@ -279,10 +282,26 @@ class _LoginScreenState extends State<LoginScreen> {
                             }
 
                             final success = await authRepo.loginWithGoogle(
-                              idToken,
+                              googleData.idToken,
                             );
 
                             if (success) {
+                              final userId = await TokenService.getUserId();
+
+                              if (userId != null) {
+                                final user = UserModel(
+                                  id: userId,
+                                  username: googleData.name ?? '',
+                                  email: googleData.email ?? '',
+                                  phone: '',
+                                  location: '',
+                                  bio: '',
+                                  imageUrl: googleData.photoUrl ?? '',
+                                  createdAt: DateTime.now(),
+                                );
+
+                                await UserService().createUser(userId, user);
+                              }
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(builder: (_) => Test()),

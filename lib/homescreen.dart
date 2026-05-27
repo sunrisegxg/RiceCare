@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:ricecare/constants/colors.dart';
@@ -10,6 +11,8 @@ import 'package:shimmer/shimmer.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import 'models/notemodel.dart';
+import 'other_result_screen.dart';
+import 'services/notification_service.dart';
 import 'services/planner_service.dart';
 import 'services/token_service.dart';
 import 'services/weather_service.dart';
@@ -144,9 +147,36 @@ class _HomeScreenState extends State<HomeScreen> {
                         MaterialPageRoute(builder: (_) => ProfileScreenUI()),
                       );
                     },
-                    child: const CircleAvatar(
-                      radius: 22,
-                      backgroundImage: AssetImage("assets/images/paddy1.jpg"),
+                    child: StreamBuilder<DocumentSnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(userId)
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData || !snapshot.data!.exists) {
+                          return const CircleAvatar(
+                            radius: 22,
+                            backgroundImage: AssetImage(
+                              "assets/images/paddy1.jpg",
+                            ),
+                          );
+                        }
+
+                        final data =
+                            snapshot.data!.data() as Map<String, dynamic>;
+
+                        final imageUrl = data['imageUrl'];
+
+                        return CircleAvatar(
+                          radius: 22,
+                          backgroundColor: Colors.grey.shade200,
+                          backgroundImage:
+                              imageUrl != null && imageUrl.toString().isNotEmpty
+                              ? NetworkImage(imageUrl)
+                              : const AssetImage("assets/images/paddy1.jpg")
+                                    as ImageProvider,
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -179,6 +209,23 @@ class _HomeScreenState extends State<HomeScreen> {
                     Colors.blue,
                     onTap: () {
                       widget.onTabSelected?.call(1);
+                      // Navigator.push(
+                      //   context,
+                      //   MaterialPageRoute(
+                      //     builder: (_) => const OtherResultScreen(
+                      //       title: "Nhu cầu dinh dưỡng của cây lúa",
+
+                      //       description:
+                      //           "Cây lúa cần được cung cấp đầy đủ các chất dinh dưỡng như đạm, lân và kali để phát triển tốt trong từng giai đoạn sinh trưởng. "
+                      //           "Việc bón phân hợp lý giúp tăng năng suất, cải thiện chất lượng hạt và hạn chế sâu bệnh. "
+                      //           "Ngoài ra, nông dân cần chú ý đến điều kiện đất, nước và thời tiết để điều chỉnh lượng phân bón phù hợp. "
+                      //           "Trong giai đoạn đẻ nhánh, cây lúa cần nhiều đạm để phát triển thân lá. "
+                      //           "Ở giai đoạn làm đòng và trổ bông, kali và lân đóng vai trò quan trọng giúp cây cứng cáp và tăng khả năng chống chịu.",
+
+                      //       image: "assets/images/rice1.jpg",
+                      //     ),
+                      //   ),
+                      // );
                     },
                   ),
                   actionCard(
@@ -501,6 +548,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   if (shouldDelete == true && userId != null) {
                     await noteService.deleteNote(userId!, note.id);
+                    await NotificationService.cancel(note.id.hashCode);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('note_deleted'.tr()),
@@ -801,6 +849,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       onPressed: () async {
                         if (titleController.text.trim().isEmpty) return;
+                        if (userId == null) return;
+
+                        final eventDateTime = DateTime(
+                          noteDate.year,
+                          noteDate.month,
+                          noteDate.day,
+                          reminder?.hour ?? 0,
+                          reminder?.minute ?? 0,
+                        );
 
                         final updatedNote = PlannerNote(
                           id: note?.id ?? '',
@@ -810,25 +867,47 @@ class _HomeScreenState extends State<HomeScreen> {
                           reminder: reminder,
                         );
 
-                        if (userId == null) return;
-
                         if (note == null) {
-                          await noteService.addNote(userId!, updatedNote);
+                          // 👉 ADD NOTE
+                          final newId = DateTime.now().millisecondsSinceEpoch
+                              .toString();
+
+                          final noteToSave = PlannerNote(
+                            id: newId,
+                            title: updatedNote.title,
+                            description: updatedNote.description,
+                            date: updatedNote.date,
+                            reminder: updatedNote.reminder,
+                          );
+
+                          await noteService.addNote(userId!, noteToSave);
+
+                          // 🔔 NOTIFY ĐÚNG GIỜ
+                          await NotificationService.scheduleNotification(
+                            id: newId.hashCode,
+                            title: noteToSave.title,
+                            body: noteToSave.description ?? '',
+                            notifyTime: eventDateTime,
+                          );
+
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('note_saved'.tr()),
-                              behavior: SnackBarBehavior.floating,
-                              margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                            ),
+                            SnackBar(content: Text('note_saved'.tr())),
                           );
                         } else {
+                          // 👉 UPDATE NOTE
                           await noteService.updateNote(userId!, updatedNote);
+
+                          await NotificationService.cancel(note.id.hashCode);
+
+                          await NotificationService.scheduleNotification(
+                            id: note.id.hashCode,
+                            title: updatedNote.title,
+                            body: updatedNote.description ?? '',
+                            notifyTime: eventDateTime, // 👈 ĐÚNG GIỜ LUÔN
+                          );
+
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('note_updated'.tr()),
-                              behavior: SnackBarBehavior.floating,
-                              margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                            ),
+                            SnackBar(content: Text('note_updated'.tr())),
                           );
                         }
 

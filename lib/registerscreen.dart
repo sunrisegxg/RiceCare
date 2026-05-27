@@ -5,9 +5,12 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:ricecare/components/btn_text.dart';
 import 'package:ricecare/constants/colors.dart';
+import 'package:ricecare/services/token_service.dart';
+import 'package:ricecare/services/user_service.dart';
 
 import 'components/textfield_type.dart';
 import 'features/auth_repository.dart';
+import 'models/usermodel.dart';
 
 class RegisterScreen extends StatefulWidget {
   final VoidCallback showLoginPage;
@@ -42,6 +45,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void onRegister() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (_passwordController.text != _passwordCfController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Password confirmation does not match")),
+      );
+      return;
+    }
+
     bool success = await AuthRepository().register(
       username: _emailController.text,
       password: _passwordController.text,
@@ -49,7 +61,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
 
     if (success) {
+      final userId = await TokenService.getUserId();
+      log("USER ID: $userId");
+
+      if (userId != null) {
+        final user = UserModel(
+          id: userId,
+          username: _usernameController.text,
+          email: _emailController.text,
+          phone: '',
+          location: '',
+          bio: '',
+          imageUrl: '',
+          createdAt: DateTime.now(),
+        );
+
+        await UserService().createUser(userId, user);
+      }
+
       log("Đăng ký thành công");
+
       widget.showLoginPage();
     } else {
       log("Đăng ký thất bại");

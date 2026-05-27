@@ -8,8 +8,13 @@ import 'components/section_title.dart';
 
 class GuideResultScreen extends StatelessWidget {
   final GuideModel guide;
+  final String imagePath;
 
-  const GuideResultScreen({super.key, required this.guide});
+  const GuideResultScreen({
+    super.key,
+    required this.guide,
+    required this.imagePath,
+  });
 
   String cleanValue(String? value) {
     if (value == null) return "";
@@ -18,13 +23,13 @@ class GuideResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final symptomsList = (guide.symtomz ?? "")
+    final symptomsList = (guide.symptoms ?? "")
         .split("\n")
         .where((e) => e.trim().isNotEmpty)
         .toList();
 
     final severity = cleanValue(guide.severity);
-    final spreadRisk = cleanValue(guide.speadrisk);
+    final spreadRisk = cleanValue(guide.spreadRisk);
     final humidity = guide.humidity ?? "";
 
     return Scaffold(
@@ -36,7 +41,7 @@ class GuideResultScreen extends StatelessWidget {
           SizedBox(
             height: 300,
             width: double.infinity,
-            child: Image.asset("assets/images/paddy1.jpg", fit: BoxFit.cover),
+            child: Image.asset(imagePath, fit: BoxFit.cover),
           ),
 
           /// CLOSE BUTTON

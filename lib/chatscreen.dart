@@ -4,7 +4,11 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:translator/translator.dart';
+
 import 'languagescreen.dart';
+import 'models/chatmodel.dart';
+import 'services/chat_service.dart';
+import 'services/token_service.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -14,78 +18,173 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final TextEditingController controller = TextEditingController();
+  String? userId;
 
+  final TextEditingController controller = TextEditingController();
   final ScrollController scrollController = ScrollController();
 
-  List<Map<String, dynamic>> messages = [];
+  final ChatService _chatService = ChatService();
 
-  bool isLoading = false;
+  List<Map<String, Object>> messages = [];
+
+  bool isLoading = true;
+  bool isSending = false;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (messages.isEmpty) {
-      messages.add({"text": 'chat_welcome'.tr(), "isMe": false});
+  void initState() {
+    super.initState();
+    loadUser();
+  }
+
+  Future<void> loadUser() async {
+    try {
+      final id = await TokenService.getUserId();
+
+      if (!mounted || id == null) return;
+
+      final data = await _chatService.getMessagesOnce(id);
+
+      setState(() {
+        userId = id;
+
+        messages = data.map((e) {
+          return {"text": e.text, "isMe": e.isMe};
+        }).toList();
+
+        // nếu chưa có chat
+        if (messages.isEmpty) {
+          messages.add({"text": 'chat_welcome'.tr(), "isMe": false});
+        }
+
+        isLoading = false;
+      });
+
+      scrollToBottom();
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
   Future<void> sendMessage([String? value]) async {
-    final text = value ?? controller.text.trim();
+    final text = controller.text.trim();
 
-    if (text.isEmpty) return;
+    if (text.isEmpty || userId == null) return;
 
+    // UI add user message
     setState(() {
       messages.add({"text": text, "isMe": true});
 
-      isLoading = true;
+      isSending = true;
     });
 
     controller.clear();
 
     scrollToBottom();
 
-    try {
-      final response = await http.post(
-        Uri.parse("https://9589-14-233-226-148.ngrok-free.app/chat"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"question": text}),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        String answer = data["answer"] ?? 'no_response'.tr();
-
-        if (context.locale.languageCode == 'en') {
-          final translator = GoogleTranslator();
-          final translation = await translator.translate(
-            answer,
-            from: 'auto',
-            to: 'en',
-          );
-          answer = translation.text;
-        }
-
-        setState(() {
-          messages.add({"text": answer, "isMe": false});
-        });
-      } else {
-        setState(() {
-          messages.add({
-            "text": '${'ai_server_error'.tr()} (${response.statusCode})',
-            "isMe": false,
-          });
-        });
-      }
-    } catch (e) {
-      setState(() {
-        messages.add({"text": 'cannot_connect_to_ai'.tr(), "isMe": false});
-      });
-    }
+    // save user message
+    await _chatService.sendMessage(
+      userId!,
+      ChatMessageModel(
+        id: 'abc',
+        text: text,
+        isMe: true,
+        createdAt: DateTime.now(),
+      ),
+    );
+    await Future.delayed(const Duration(seconds: 1));
 
     setState(() {
-      isLoading = false;
+      messages.add({"text": "abcndđ", "isMe": false});
+    });
+    await _chatService.sendMessage(
+      userId!,
+      ChatMessageModel(
+        id: 'edf',
+        text: "abcndđ",
+        isMe: false,
+        createdAt: DateTime.now(),
+      ),
+    );
+
+    // try {
+    //   final response = await http.post(
+    //     Uri.parse("https://9589-14-233-226-148.ngrok-free.app/chat"),
+    //     headers: {"Content-Type": "application/json"},
+    //     body: jsonEncode({"question": text}),
+    //   );
+
+    //   if (response.statusCode == 200) {
+    //     final data = jsonDecode(response.body);
+
+    //     String answer = data["answer"] ?? 'no_response'.tr();
+
+    //     // translate EN
+    //     if (context.locale.languageCode == 'en') {
+    //       final translator = GoogleTranslator();
+
+    //       final translation = await translator.translate(
+    //         answer,
+    //         from: 'auto',
+    //         to: 'en',
+    //       );
+
+    //       answer = translation.text;
+    //     }
+
+    //     // UI add bot message
+    //     setState(() {
+    //       messages.add({"text": answer, "isMe": false});
+    //     });
+
+    //     // save bot message
+    //     await _chatService.sendMessage(
+    //       userId!,
+    //       ChatMessageModel(
+    //         id: '',
+    //         text: answer,
+    //         isMe: false,
+    //         createdAt: DateTime.now(),
+    //       ),
+    //     );
+    //   } else {
+    //     final errorText = '${'ai_server_error'.tr()} (${response.statusCode})';
+
+    //     setState(() {
+    //       messages.add({"text": errorText, "isMe": false});
+    //     });
+
+    //     await _chatService.sendMessage(
+    //       userId!,
+    //       ChatMessageModel(
+    //         id: '',
+    //         text: errorText,
+    //         isMe: false,
+    //         createdAt: DateTime.now(),
+    //       ),
+    //     );
+    //   }
+    // } catch (e) {
+    //   final errorText = 'cannot_connect_to_ai'.tr();
+
+    //   setState(() {
+    //     messages.add({"text": errorText, "isMe": false});
+    //   });
+
+    //   await _chatService.sendMessage(
+    //     userId!,
+    //     ChatMessageModel(
+    //       id: '',
+    //       text: errorText,
+    //       isMe: false,
+    //       createdAt: DateTime.now(),
+    //     ),
+    //   );
+    // }
+
+    setState(() {
+      isSending = false;
     });
 
     scrollToBottom();
@@ -104,10 +203,20 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   @override
+  void dispose() {
+    controller.dispose();
+    scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (isLoading && messages.isEmpty) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
-
       body: SafeArea(
         child: Column(
           children: [
@@ -178,31 +287,35 @@ class _ChatScreenState extends State<ChatScreen> {
                   horizontal: 16,
                   vertical: 8,
                 ),
-                itemCount: messages.length + (isLoading ? 1 : 0),
+                itemCount: messages.length + (isSending ? 1 : 0),
                 itemBuilder: (context, index) {
+                  // loading bubble
                   if (index == messages.length) {
                     return chatBubble(isMe: false, text: 'ai_replying'.tr());
                   }
 
                   final msg = messages[index];
 
-                  return chatBubble(isMe: msg["isMe"], text: msg["text"]);
+                  return chatBubble(
+                    isMe: msg["isMe"] as bool,
+                    text: msg["text"] as String,
+                  );
                 },
               ),
             ),
 
+            // suggestions
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   Text(
                     'quick_suggestions'.tr(),
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
 
-                  SizedBox(height: 10),
+                  const SizedBox(height: 10),
 
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -210,22 +323,28 @@ class _ChatScreenState extends State<ChatScreen> {
                       children: [
                         suggestionChip(
                           'suggestion_rice_blast_treatment',
-                          Color(0xFFEDF8EC),
+                          const Color(0xFFEDF8EC),
                         ),
+
                         const SizedBox(width: 8),
+
                         suggestionChip(
                           'suggestion_brown_spot',
-                          Color(0xFFF8EFEC),
+                          const Color(0xFFF8EFEC),
                         ),
+
                         const SizedBox(width: 8),
+
                         suggestionChip(
                           'suggestion_prevent_disease',
-                          Color(0xFFECF6F8),
+                          const Color(0xFFECF6F8),
                         ),
+
                         const SizedBox(width: 8),
+
                         suggestionChip(
                           'suggestion_yellow_leaves',
-                          Color(0xFFFEF9EF),
+                          const Color(0xFFFEF9EF),
                         ),
                       ],
                     ),
@@ -233,6 +352,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ],
               ),
             ),
+
             inputBar(),
           ],
         ),

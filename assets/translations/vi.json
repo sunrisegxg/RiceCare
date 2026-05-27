@@ -8,7 +8,7 @@
   "tab_all": "Tất cả",
   "tab_diseases": "Bệnh lý",
   "tab_farming": "Canh tác",
-  "tab_fertilizer": "Phân bón",
+  "tab_fertilizer": "Chất dinh dưỡng",
   "tab_pest": "Sâu bệnh",
   "tab_tips": "Mẹo",
   "article_rice_blast_title": "Bệnh đạo ôn",
@@ -164,5 +164,6 @@
   "scanned_result": "Kết quả đã quét",
   "saved_result_on": "Kết quả đã lưu vào ngày",
   "unable_to_identify": "Không thể xác định bệnh",
-  "saved_success": "Kết quả đã được lưu thành công"
+  "saved_success": "Kết quả đã được lưu thành công",
+  "no_guides_found": "Không tìm thấy cẩm nang nào"
 }

@@ -315,6 +315,7 @@ class HistoryResultScreen extends StatelessWidget {
                           /// SHARE
                           Expanded(
                             child: ElevatedButton(
+                              onPressed: () {},
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.btnbgrColor,
                                 foregroundColor: Colors.white,
@@ -328,41 +329,40 @@ class HistoryResultScreen extends StatelessWidget {
                                 ),
                               ),
 
-                              onPressed: () async {
-                                final prefs =
-                                    await SharedPreferences.getInstance();
+                              // onPressed: () async {
+                              //   final prefs =
+                              //       await SharedPreferences.getInstance();
 
-                                final enabled =
-                                    prefs.getBool('notification_enabled') ??
-                                    false;
+                              //   final enabled =
+                              //       prefs.getBool('notification_enabled') ??
+                              //       false;
 
-                                if (!enabled) {
-                                  print("Notification đang bị tắt");
-                                  return;
-                                }
+                              //   if (!enabled) {
+                              //     print("Notification đang bị tắt");
+                              //     return;
+                              //   }
 
-                                const AndroidNotificationDetails
-                                androidDetails = AndroidNotificationDetails(
-                                  'channel_id',
-                                  'Reminder',
-                                  importance: Importance.max,
-                                  priority: Priority.high,
-                                );
+                              //   const AndroidNotificationDetails
+                              //   androidDetails = AndroidNotificationDetails(
+                              //     'channel_id',
+                              //     'Reminder',
+                              //     importance: Importance.max,
+                              //     priority: Priority.high,
+                              //   );
 
-                                const NotificationDetails details =
-                                    NotificationDetails(
-                                      android: androidDetails,
-                                    );
+                              //   const NotificationDetails details =
+                              //       NotificationDetails(
+                              //         android: androidDetails,
+                              //       );
 
-                                await flutterLocalNotificationsPlugin.show(
-                                  id: 0,
-                                  title: 'Xin chào 👋',
-                                  body:
-                                      'Đây là Local Notification đầu tiên của bạn!',
-                                  notificationDetails: details,
-                                );
-                              },
-
+                              //   await flutterLocalNotificationsPlugin.show(
+                              //     id: 0,
+                              //     title: 'Xin chào 👋',
+                              //     body:
+                              //         'Đây là Local Notification đầu tiên của bạn!',
+                              //     notificationDetails: details,
+                              //   );
+                              // },
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [

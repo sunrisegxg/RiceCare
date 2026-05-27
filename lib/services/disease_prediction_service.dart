@@ -7,7 +7,7 @@ import 'package:http/http.dart';
 import '../models/predictionresultmode.dart';
 
 class DiseasePredictionService {
-  static const String baseUrl = 'http://165.22.243.199:8000';
+  static const String baseUrl = 'http://143.198.199.41:8000';
 
   static Future<PredictionResult> predict(File imageFile) async {
     final uri = Uri.parse('$baseUrl/predict');

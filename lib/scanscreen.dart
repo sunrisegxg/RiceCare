@@ -2,6 +2,7 @@ import 'package:camera/camera.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'postscanscreen.dart';
 
@@ -13,7 +14,7 @@ class ScanScreen extends StatefulWidget {
 }
 
 class _ScanScreenState extends State<ScanScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   CameraController? _controller;
   List<CameraDescription>? cameras;
 
@@ -28,6 +29,8 @@ class _ScanScreenState extends State<ScanScreen>
   void initState() {
     super.initState();
 
+    WidgetsBinding.instance.addObserver(this);
+
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
@@ -40,19 +43,55 @@ class _ScanScreenState extends State<ScanScreen>
     initCamera();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkPermissionAgain();
+    }
+  }
+
+  Future<void> _checkPermissionAgain() async {
+    final status = await Permission.camera.status;
+
+    if (status.isGranted) {
+      if (_controller == null) {
+        initCamera(); // restart camera nếu đã bật lại quyền
+      }
+    } else if (status.isPermanentlyDenied) {
+      // user vẫn chưa cấp hoặc deny vĩnh viễn
+      // có thể mở settings nếu muốn
+    }
+  }
+
   Future<void> initCamera() async {
-    cameras = await availableCameras();
+    final status = await Permission.camera.request();
 
-    _controller = CameraController(
-      cameras![0],
-      ResolutionPreset.high,
-      enableAudio: false,
-    );
+    if (!status.isGranted) {
+      if (!mounted) return;
 
-    await _controller!.initialize();
+      Navigator.pop(context);
+      return;
+    }
 
-    if (!mounted) return;
-    setState(() {});
+    try {
+      cameras = await availableCameras();
+
+      _controller = CameraController(
+        cameras![0],
+        ResolutionPreset.high,
+        enableAudio: false,
+      );
+
+      await _controller!.initialize();
+
+      if (!mounted) return;
+      setState(() {});
+    } catch (e) {
+      debugPrint("Camera error: $e");
+
+      if (!mounted) return;
+      Navigator.pop(context);
+    }
   }
 
   Future<void> switchCamera() async {
@@ -149,6 +188,7 @@ class _ScanScreenState extends State<ScanScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
     _animationController.dispose();
     super.dispose();

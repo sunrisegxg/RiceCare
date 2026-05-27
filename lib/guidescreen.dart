@@ -6,6 +6,7 @@ import 'package:translator/translator.dart';
 import 'constants/colors.dart';
 import 'guide_result_screen.dart';
 import 'models/guidemodel.dart';
+import 'other_result_screen.dart';
 import 'services/guide_service.dart';
 
 class GuideScreen extends StatefulWidget {
@@ -16,6 +17,9 @@ class GuideScreen extends StatefulWidget {
 }
 
 class _GuideScreenState extends State<GuideScreen> {
+  final TextEditingController searchController = TextEditingController();
+
+  List<GuideModel> filteredGuides = [];
   List<GuideModel> guides = [];
   bool isLoading = true;
 
@@ -23,6 +27,14 @@ class _GuideScreenState extends State<GuideScreen> {
 
   late PageController _pageController;
   late ScrollController _tabScrollController;
+
+  final List<String> riceImages = [
+    "assets/images/rice1.jpg",
+    "assets/images/rice2.jpg",
+    "assets/images/rice3.jpg",
+    "assets/images/rice4.jpg",
+    "assets/images/rice5.jpg",
+  ];
 
   final List<String> tabs = [
     'tab_all',
@@ -55,6 +67,7 @@ class _GuideScreenState extends State<GuideScreen> {
 
       setState(() {
         guides = data;
+        filteredGuides = data;
         isLoading = false;
       });
     } catch (e) {
@@ -63,6 +76,18 @@ class _GuideScreenState extends State<GuideScreen> {
 
       setState(() => isLoading = false);
     }
+  }
+
+  void searchGuide(String keyword) {
+    setState(() {
+      if (keyword.trim().isEmpty) {
+        filteredGuides = guides;
+      } else {
+        filteredGuides = guides.where((guide) {
+          return guide.title.toLowerCase().contains(keyword.toLowerCase());
+        }).toList();
+      }
+    });
   }
 
   @override
@@ -91,6 +116,8 @@ class _GuideScreenState extends State<GuideScreen> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: TextField(
+                        controller: searchController,
+                        onChanged: searchGuide,
                         decoration: InputDecoration(
                           hintText: 'search'.tr(),
                           border: InputBorder.none,
@@ -221,13 +248,56 @@ class _GuideScreenState extends State<GuideScreen> {
                         },
                         itemCount: tabs.length,
                         itemBuilder: (context, pageIndex) {
+                          List<GuideModel> pageGuides = [];
+
+                          /// TAB ALL
+                          if (pageIndex == 0) {
+                            pageGuides = filteredGuides;
+                          }
+                          /// TAB DISEASES
+                          else if (pageIndex == 1) {
+                            pageGuides = filteredGuides.where((guide) {
+                              return guide.type == "Bệnh hại lúa";
+                            }).toList();
+                          }
+                          /// TAB FARMING
+                          else if (pageIndex == 2) {
+                            pageGuides = filteredGuides.where((guide) {
+                              return guide.type == "Kỹ thuật trồng lúa";
+                            }).toList();
+                          }
+                          /// TAB FERTILIZER
+                          else if (pageIndex == 3) {
+                            pageGuides = filteredGuides.where((guide) {
+                              return guide.type == "Chất dinh dưỡng ";
+                            }).toList();
+                          }
+                          /// TAB TIPS
+                          else {
+                            pageGuides = filteredGuides.where((guide) {
+                              return guide.type == "Mẹo";
+                            }).toList();
+                          }
+
+                          if (pageGuides.isEmpty) {
+                            return Center(
+                              child: Text(
+                                "no_guides_found".tr(),
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            );
+                          }
+
                           return ListView.builder(
                             padding: const EdgeInsets.only(top: 4),
-                            itemCount: guides.length,
+                            itemCount: pageGuides.length,
                             itemBuilder: (context, index) {
-                              final item = guides[index];
+                              final item = pageGuides[index];
 
-                              return buildGuideItem(item);
+                              return buildGuideItem(item, index);
                             },
                           );
                         },
@@ -240,7 +310,7 @@ class _GuideScreenState extends State<GuideScreen> {
     );
   }
 
-  Widget buildGuideItem(GuideModel item) {
+  Widget buildGuideItem(GuideModel item, int index) {
     return FutureBuilder<GuideModel>(
       future: _translateIfNeeded(item),
       builder: (context, snapshot) {
@@ -299,7 +369,17 @@ class _GuideScreenState extends State<GuideScreen> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => GuideResultScreen(guide: translatedItem),
+                builder: (_) =>
+                    translatedItem.type == "Kỹ thuật trồng lúa" ||
+                        translatedItem.type == "Chất dinh dưỡng "
+                    ? OtherResultScreen(
+                        guide: translatedItem,
+                        imagePath: riceImages[index % riceImages.length],
+                      )
+                    : GuideResultScreen(
+                        guide: translatedItem,
+                        imagePath: riceImages[index % riceImages.length],
+                      ),
               ),
             );
           },
@@ -314,14 +394,29 @@ class _GuideScreenState extends State<GuideScreen> {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
-                  child: Image.network(
-                    // nếu API chưa có image -> dùng placeholder
-                    // item.image ??
-                    "https://images.unsplash.com/photo-1501004318641-b39e6451bec6",
-                    width: 80,
-                    height: 80,
-                    fit: BoxFit.cover,
-                  ),
+                  child:
+                      translatedItem.type == "Kỹ thuật trồng lúa" ||
+                          translatedItem.type == "Chất dinh dưỡng "
+                      ? Image.network(
+                          translatedItem.url!,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Image.asset(
+                              riceImages[index % riceImages.length],
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                            );
+                          },
+                        )
+                      : Image.asset(
+                          riceImages[index % riceImages.length],
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                        ),
                 ),
                 const SizedBox(width: 12),
 
@@ -338,7 +433,10 @@ class _GuideScreenState extends State<GuideScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        translatedItem.definition,
+                        translatedItem.type == "Kỹ thuật trồng lúa" ||
+                                translatedItem.type == "Chất dinh dưỡng "
+                            ? (translatedItem.content ?? "")
+                            : (translatedItem.definition ?? ""),
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -368,13 +466,18 @@ class _GuideScreenState extends State<GuideScreen> {
       );
 
       final defTrans = await translator.translate(
-        item.definition,
+        item.definition ?? "",
+        from: 'auto',
+        to: 'en',
+      );
+      final contentTrans = await translator.translate(
+        item.content ?? "",
         from: 'auto',
         to: 'en',
       );
 
       final symptomTrans = await translator.translate(
-        item.symtomz ?? "",
+        item.symptoms ?? "",
         from: 'auto',
         to: 'en',
       );
@@ -392,7 +495,7 @@ class _GuideScreenState extends State<GuideScreen> {
       );
 
       final spreadRiskTrans = await translator.translate(
-        item.speadrisk ?? "",
+        item.spreadRisk ?? "",
         from: 'auto',
         to: 'en',
       );
@@ -413,12 +516,14 @@ class _GuideScreenState extends State<GuideScreen> {
         idFE: item.idFE,
         title: titleTrans.text,
         definition: defTrans.text,
-        symtomz: symptomTrans.text,
+        symptoms: symptomTrans.text,
         measurement: measurementTrans.text,
         cause: causeTrans.text,
-        speadrisk: spreadRiskTrans.text,
+        spreadRisk: spreadRiskTrans.text,
         humidity: humidityTrans.text,
         severity: severityTrans.text,
+        content: contentTrans.text,
+        url: item.url,
       );
     }
 
